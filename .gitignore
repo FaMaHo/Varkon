@@ -1,0 +1,69 @@
+# Root .gitignore for Varkon3D
+# Covers Visual Studio, build outputs, CMake, and common OS temp files
+
+# ----- Visual Studio -----
+.vs/
+*.suo
+*.user
+*.userosscache
+*.VC.db
+*.VC.VC.opendb
+ipch/
+*.ncb
+*.sdf
+*.opensdf
+
+# ----- Build outputs -----
+[Bb]in/
+[Oo]bj/
+build/
+out/
+Debug/
+Release/
+x64/Debug/
+x64/Release/
+**/Debug/
+**/Release/
+
+# Common compiled files
+*.o
+*.lo
+*.la
+*.lib
+*.a
+*.dll
+*.exe
+*.ilk
+*.pdb
+*.ipdb
+*.idb
+
+# ----- CMake -----
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+
+# ----- Packaging / logs / misc -----
+*.log
+*.tmp
+*.temp
+*.cache
+*.swp
+*~
+
+# ----- OS files -----
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ----- Editor / IDE -----
+.vscode/
+
+# ----- Environment files -----
+.env
+
+# ----- Third-party dependencies -----
+# Ignore vendored dependency folders (e.g., GameEngine/Dependencies/*)
+Dependencies/
+**/Dependencies/
