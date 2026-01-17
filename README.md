@@ -1,7 +1,7 @@
 # Varkon3D
 
 ## Team members:
-- Nour Mahfood
+- Nour Al Houda Mahfood
 - ⁠Fatemeh Mahmoudzadeh
 - ⁠Hussein Mokhadder
 - Saeed Zayyad
