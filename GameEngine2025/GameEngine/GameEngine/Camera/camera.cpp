@@ -2,7 +2,7 @@
 
 Camera::Camera()
 {
-    cameraPosition = glm::vec3(0.0f, 5.0f, 0.0f);
+    cameraPosition = glm::vec3(0.0f, -10.0f, 0.0f);
     cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
 
     yaw = -90.0f;
