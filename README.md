@@ -70,4 +70,5 @@ Varkon3D
         └───x64
             └───Debug
 ```
-you can download Dependencies and Debug files from here: https://curs.upb.ro/2025/mod/resource/view.php?id=70823
+As we are ignoring files and folders like Dependencies and obj and bmp files (as they are heavy and make git crash), you can download the full project from here:
+[link]
