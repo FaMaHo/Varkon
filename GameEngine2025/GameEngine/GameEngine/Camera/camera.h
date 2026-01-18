@@ -48,4 +48,9 @@ public:
 
     // Mouse look
     void processMouseMovement(float xoffset, float yoffset);
+    
+    void setPosition(glm::vec3 newPosition);
+    
 };
+
+

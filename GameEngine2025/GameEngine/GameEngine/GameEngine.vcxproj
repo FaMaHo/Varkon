@@ -118,6 +118,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Camera\camera.cpp" />
+    <ClCompile Include="Collisions\collision.cpp" />
     <ClCompile Include="Graphics\window.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Model Loading\meshLoaderObj.cpp" />
@@ -127,6 +128,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Camera\camera.h" />
+    <ClInclude Include="Collisions\collision.h" />
     <ClInclude Include="Graphics\window.h" />
     <ClInclude Include="Model Loading\meshLoaderObj.h" />
     <ClInclude Include="Model Loading\mesh.h" />

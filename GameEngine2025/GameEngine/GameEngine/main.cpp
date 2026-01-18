@@ -4,6 +4,7 @@
 #include "Model Loading\mesh.h"
 #include "Model Loading\texture.h"
 #include "Model Loading\meshLoaderObj.h"
+#include "Collisions\collision.h"
 #include <vector>
 #include <algorithm>
 #include <iostream>
@@ -16,8 +17,13 @@ float lastY = 600.0f;
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
+
 Window window("VARKON", 2000, 1200);
 Camera camera;
+
+CollisionSystem collisionSystem;
+float playerRadius = 3.0f;  // Collision sphere radius for player
+bool showDebugCollision = true;  // Toggle with a key
 
 glm::vec3 lightColor = glm::vec3(1.0f);
 glm::vec3 lightPos = glm::vec3(0.0f, 500.0f, 0.0f);
@@ -125,6 +131,67 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos)
     camera.processMouseMovement(xoffset, yoffset);
 }
 
+// Helper function to create approximate bounding box for objects
+/*AABB createAABBForObject(glm::vec3 position, glm::vec3 scale, float baseSize = 10.0f) {
+    glm::vec3 halfExtents = glm::vec3(baseSize) * scale * 0.5f;
+    return AABB(position - halfExtents, position + halfExtents);
+}*/
+
+/// Add this NEW function to draw spheres
+void drawDebugSphere(glm::vec3 center, float radius, Shader& shader, glm::mat4 ProjectionMatrix, glm::mat4 ViewMatrix) {
+    const int segments = 16;
+    const int rings = 8;
+    std::vector<float> vertices;
+
+    // Generate sphere wireframe
+    for (int i = 0; i <= rings; i++) {
+        float theta1 = i * 3.14159f / rings;
+        float theta2 = (i + 1) * 3.14159f / rings;
+
+        for (int j = 0; j <= segments; j++) {
+            float phi = j * 2.0f * 3.14159f / segments;
+
+            // First point
+            float x1 = radius * sin(theta1) * cos(phi);
+            float y1 = radius * cos(theta1);
+            float z1 = radius * sin(theta1) * sin(phi);
+
+            // Second point
+            float x2 = radius * sin(theta2) * cos(phi);
+            float y2 = radius * cos(theta2);
+            float z2 = radius * sin(theta2) * sin(phi);
+
+            vertices.push_back(center.x + x1);
+            vertices.push_back(center.y + y1);
+            vertices.push_back(center.z + z1);
+
+            vertices.push_back(center.x + x2);
+            vertices.push_back(center.y + y2);
+            vertices.push_back(center.z + z2);
+        }
+    }
+
+    GLuint vao, vbo;
+    glGenVertexArrays(1, &vao);
+    glGenBuffers(1, &vbo);
+
+    glBindVertexArray(vao);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(float), vertices.data(), GL_STATIC_DRAW);
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+
+    shader.use();
+    glm::mat4 MVP = ProjectionMatrix * ViewMatrix;
+    glUniformMatrix4fv(glGetUniformLocation(shader.getId(), "MVP"), 1, GL_FALSE, &MVP[0][0]);
+
+    glDrawArrays(GL_LINES, 0, vertices.size() / 3);
+
+    glDeleteBuffers(1, &vbo);
+    glDeleteVertexArrays(1, &vao);
+}
+
 // =============================== MAIN ===============================
 int main()
 {
@@ -208,6 +275,44 @@ int main()
     bodyTextures.push_back({ bodyTexture, "texture_diffuse" });
     Mesh alien = loader.loadObj("Resources/Models/body.obj", bodyTextures);
 
+    // Add this section after all mesh creation and before the main loop:
+
+
+    // ===== SETUP COLLISION SPHERES =====
+    std::cout << "Setting up collision system with SPHERES..." << std::endl;
+
+    // CaveWallSet at (-80, -9, -120)
+    collisionSystem.addSphere(glm::vec3(-80.0f, -5.0f, -120.0f), 35.0f);
+
+    // CaveWallA at (40, -8, -260)
+    collisionSystem.addSphere(glm::vec3(40.0f, -5.0f, -260.0f), 30.0f);
+
+    // CaveWallB at (-70, -7, -350)
+    collisionSystem.addSphere(glm::vec3(-70.0f, -5.0f, -350.0f), 40.0f);
+
+    // CaveWallC at (-100, -6, -480)
+    collisionSystem.addSphere(glm::vec3(-100.0f, -5.0f, -480.0f), 35.0f);
+
+    // CaveWallA at (-30, -8.5, 400)
+    collisionSystem.addSphere(glm::vec3(-30.0f, -5.0f, 400.0f), 28.0f);
+
+    // CaveWall4Set at (100, 10, 350)
+    collisionSystem.addSphere(glm::vec3(100.0f, -3.0f, 350.0f), 35.0f);
+
+    // Rock04 models - All the rocks
+    collisionSystem.addSphere(glm::vec3(-150.0f, -5.0f, 200.0f), 25.0f);
+    collisionSystem.addSphere(glm::vec3(-180.0f, -5.0f, -50.0f), 22.0f);
+    collisionSystem.addSphere(glm::vec3(150.0f, -5.0f, -80.0f), 25.0f);
+    collisionSystem.addSphere(glm::vec3(170.0f, -5.0f, 20.0f), 24.0f);
+    collisionSystem.addSphere(glm::vec3(-160.0f, -5.0f, 80.0f), 22.0f);
+    collisionSystem.addSphere(glm::vec3(140.0f, -5.0f, 50.0f), 20.0f);
+    collisionSystem.addSphere(glm::vec3(-140.0f, -5.0f, 30.0f), 24.0f);
+    collisionSystem.addSphere(glm::vec3(-175.0f, -5.0f, 150.0f), 26.0f);
+    collisionSystem.addSphere(glm::vec3(-130.0f, -5.0f, -30.0f), 23.0f);
+    collisionSystem.addSphere(glm::vec3(-155.0f, -5.0f, -120.0f), 21.0f);
+    collisionSystem.addSphere(glm::vec3(-165.0f, -5.0f, 250.0f), 24.0f);
+
+    std::cout << "Collision system ready with " << collisionSystem.getSpheres().size() << " spheres!" << std::endl;
     // =============================== MAIN LOOP ===============================
     while (!window.isPressed(GLFW_KEY_ESCAPE) &&
         glfwWindowShouldClose(window.getWindow()) == 0)
@@ -529,7 +634,23 @@ int main()
 
         glDisable(GL_BLEND);
         glEnable(GL_DEPTH_TEST);
+        // ===== DEBUG: RENDER COLLISION BOXES =====
+        // ===== DEBUG: RENDER COLLISION SPHERES =====
+        if (showDebugCollision) {
+            glDisable(GL_DEPTH_TEST);
+            sunShader.use();
 
+            // Draw all obstacle spheres
+            for (const auto& sphere : collisionSystem.getSpheres()) {
+                drawDebugSphere(sphere.center, sphere.radius, sunShader, ProjectionMatrix, ViewMatrix);
+            }
+
+            // Draw player sphere (in a different color - we'll make it green by drawing it twice)
+            glm::vec3 playerPos = camera.getCameraPosition();
+            drawDebugSphere(playerPos, playerRadius, sunShader, ProjectionMatrix, ViewMatrix);
+
+            glEnable(GL_DEPTH_TEST);
+        }
         window.update();
     }
 
@@ -541,10 +662,79 @@ void processKeyboardInput()
 {
     float speed = 30 * deltaTime;
 
-    if (window.isPressed(GLFW_KEY_W)) camera.keyboardMoveFront(speed);
-    if (window.isPressed(GLFW_KEY_S)) camera.keyboardMoveBack(speed);
-    if (window.isPressed(GLFW_KEY_A)) camera.keyboardMoveLeft(speed);
-    if (window.isPressed(GLFW_KEY_D)) camera.keyboardMoveRight(speed);
-    if (window.isPressed(GLFW_KEY_R)) camera.keyboardMoveUp(speed);
-    if (window.isPressed(GLFW_KEY_F)) camera.keyboardMoveDown(speed);
+    // Get current position
+    glm::vec3 currentPos = camera.getCameraPosition();
+    glm::vec3 desiredPos = currentPos;
+
+    // Calculate movement directions
+    glm::vec3 forward = camera.getCameraViewDirection();
+    forward.y = 0.0f;
+    if (glm::length(forward) > 0.001f) {
+        forward = glm::normalize(forward);
+    }
+
+    glm::vec3 right = glm::normalize(glm::cross(camera.getCameraViewDirection(), camera.getCameraUp()));
+    right.y = 0.0f;
+    if (glm::length(right) > 0.001f) {
+        right = glm::normalize(right);
+    }
+
+    // Apply input to desired position
+    if (window.isPressed(GLFW_KEY_W)) {
+        desiredPos += forward * speed;
+    }
+    if (window.isPressed(GLFW_KEY_S)) {
+        desiredPos -= forward * speed;
+    }
+    if (window.isPressed(GLFW_KEY_A)) {
+        desiredPos -= right * speed;
+    }
+    if (window.isPressed(GLFW_KEY_D)) {
+        desiredPos += right * speed;
+    }
+    if (window.isPressed(GLFW_KEY_R)) {
+        desiredPos.y += speed;
+    }
+    if (window.isPressed(GLFW_KEY_F)) {
+        desiredPos.y -= speed;
+    }
+
+    // Collision detection with iterative resolution
+    glm::vec3 finalPos = desiredPos;
+
+    const int MAX_ITERATIONS = 5;
+    for (int i = 0; i < MAX_ITERATIONS; i++) {
+        glm::vec3 pushOut;
+        bool hasCollision = collisionSystem.checkPlayerCollision(finalPos, playerRadius, pushOut);
+
+        if (hasCollision) {
+            finalPos += pushOut;
+            std::cout << "Iteration " << i << " - Pushed by ("
+                << pushOut.x << ", " << pushOut.y << ", " << pushOut.z << ")" << std::endl;
+        }
+        else {
+            break;
+        }
+    }
+
+    // Final safety check
+    glm::vec3 testPush;
+    if (collisionSystem.checkPlayerCollision(finalPos, playerRadius, testPush)) {
+        std::cout << "!!! BLOCKING MOVEMENT - STILL IN COLLISION !!!" << std::endl;
+        finalPos = currentPos;
+    }
+
+    // Set position
+    camera.setPosition(finalPos);
+
+    // Toggle debug visualization
+    static bool toggleKeyPressed = false;
+    if (window.isPressed(GLFW_KEY_T) && !toggleKeyPressed) {
+        showDebugCollision = !showDebugCollision;
+        std::cout << "Debug collision: " << (showDebugCollision ? "ON" : "OFF") << std::endl;
+        toggleKeyPressed = true;
+    }
+    if (!window.isPressed(GLFW_KEY_T)) {
+        toggleKeyPressed = false;
+    }
 }
