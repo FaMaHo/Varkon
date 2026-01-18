@@ -26,6 +26,8 @@ x64/Release/
 **/Release/
 
 # Common compiled files
+*.obj
+*.bmp
 *.o
 *.lo
 *.la

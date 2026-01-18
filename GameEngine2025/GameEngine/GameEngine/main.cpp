@@ -4,7 +4,6 @@
 #include "Model Loading\mesh.h"
 #include "Model Loading\texture.h"
 #include "Model Loading\meshLoaderObj.h"
-#include "Bullet\bullet.h"
 #include <vector>
 #include <algorithm>
 #include <iostream>
@@ -23,17 +22,9 @@ Camera camera;
 glm::vec3 lightColor = glm::vec3(1.0f);
 glm::vec3 lightPos = glm::vec3(0.0f, 500.0f, 0.0f);
 
-// Crosshair VAO and VBO
-GLuint crosshairVAO, crosshairVBO;
-
-// Bullets
-std::vector<Bullet> bullets;
-bool lastMouseState = false;
-
 // ================= FUNCTION DECLARATIONS =================
 void processKeyboardInput();
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
-void drawCrosshair(int screenWidth, int screenHeight);
 
 // ================= STAR CREATION =================
 Mesh createStars(int numStars, float spaceSize)
@@ -59,7 +50,7 @@ Mesh createStars(int numStars, float spaceSize)
     return Mesh(vertices, indices);
 }
 
-// ================= CURVED GROUND (from Nour's code) =================
+// ================= CURVED GROUND =================
 Mesh createGround(float size, GLuint textureId)
 {
     std::vector<Vertex> vertices;
@@ -146,31 +137,27 @@ int main()
     // ===== SHADERS =====
     Shader shader("Shaders/vertex_shader.glsl", "Shaders/fragment_shader.glsl");
     Shader sunShader("Shaders/sun_vertex_shader.glsl", "Shaders/sun_fragment_shader.glsl");
-    Shader bulletShader("Shaders/bullet_vertex_shader.glsl", "Shaders/bullet_fragment_shader.glsl");
 
     // ===== TEXTURES =====
     GLuint marsTexture = loadBMP("Resources/Textures/mars.bmp");
+
+    // Spaceship Base textures
     GLuint baseTexture = loadBMP("Resources/Textures/Texture_1K/Base_BaseColor.bmp");
-    GLuint headTexture = loadBMP("Resources/Textures/Texture_1K/Head_BaseColor.bmp");
-    GLuint wingTexture = loadBMP("Resources/Textures/Texture_1K/Wing_BaseColor.bmp");
-    GLuint inTexture = loadBMP("Resources/Textures/Texture_1K/In_BaseColor.bmp");
+    GLuint baseNormal = loadBMP("Resources/Textures/Texture_1K/Base_Normal.bmp");
+
     GLuint gunTexture = loadBMP("Resources/Textures/SciFi_Gun_Full_Base/Paint_Base_Color.bmp");
+
     GLuint caveWallDiffuse = loadBMP("Resources/Textures/CaveWalls2_Base_Diffuse.bmp");
+
     GLuint asteroidDiffuse = loadBMP("Resources/Textures/Asteroid_1_Diffuse_1K.bmp");
 
+    GLuint caveWall4Diffuse = loadBMP("Resources/Textures/CaveWalls4_Base_Diffuse.bmp");
+
+    // Alien textures
+    GLuint bodyTexture = loadBMP("Resources/Textures/body_Base_Color.bmp");
+    GLuint eyeTexture = loadBMP("Resources/Textures/eye_Base_Color.bmp");
+
     glEnable(GL_DEPTH_TEST);
-
-    // Setup crosshair
-    glGenVertexArrays(1, &crosshairVAO);
-    glGenBuffers(1, &crosshairVBO);
-
-    glBindVertexArray(crosshairVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, crosshairVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 24, NULL, GL_DYNAMIC_DRAW);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindVertexArray(0);
 
     // ===== MESH CREATION =====
     Mesh stars = createStars(500, 2000.0f);
@@ -178,9 +165,11 @@ int main()
 
     MeshLoaderObj loader;
 
-    // Spaceship
+    // Spaceship - using only base color and normal
     std::vector<Texture> shipTextures;
     shipTextures.push_back({ baseTexture, "texture_diffuse" });
+    shipTextures.push_back({ baseNormal, "texture_normal" });
+
     Mesh spaceship = loader.loadObj("Resources/Models/Imperial_Steniel_obj.obj", shipTextures);
 
     // Space gun
@@ -201,6 +190,24 @@ int main()
     asteroidTextures.push_back({ asteroidDiffuse, "texture_diffuse" });
     Mesh asteroid = loader.loadObj("Resources/Models/Asteroid_1.obj", asteroidTextures);
 
+    // CaveWalls4 Set - only using diffuse texture
+    std::vector<Texture> caveWall4Textures;
+    caveWall4Textures.push_back({ caveWall4Diffuse, "texture_diffuse" });
+    Mesh caveWall4Set = loader.loadObj("Resources/Models/CaveWalls4_Set.obj", caveWall4Textures);
+
+    // Rock04 models - using CaveWalls2 textures
+    Mesh rock04A = loader.loadObj("Resources/Models/Rock04_A.obj", caveWallTextures);
+    Mesh rock04B = loader.loadObj("Resources/Models/Rock04_B.obj", caveWallTextures);
+    Mesh rock04C = loader.loadObj("Resources/Models/Rock04_C.obj", caveWallTextures);
+    Mesh rock04D = loader.loadObj("Resources/Models/Rock04_D.obj", caveWall4Textures);
+    Mesh rock04E = loader.loadObj("Resources/Models/Rock04_E.obj", caveWall4Textures);
+    Mesh rock04Set = loader.loadObj("Resources/Models/Rock04_Set.obj", caveWallTextures);
+
+    // Alien
+    std::vector<Texture> bodyTextures;
+    bodyTextures.push_back({ bodyTexture, "texture_diffuse" });
+    Mesh alien = loader.loadObj("Resources/Models/body.obj", bodyTextures);
+
     // =============================== MAIN LOOP ===============================
     while (!window.isPressed(GLFW_KEY_ESCAPE) &&
         glfwWindowShouldClose(window.getWindow()) == 0)
@@ -213,33 +220,7 @@ int main()
 
         processKeyboardInput();
 
-        // ===== SHOOTING MECHANIC =====
-        bool currentMouseState = window.isMousePressed(GLFW_MOUSE_BUTTON_LEFT);
-        if (currentMouseState && !lastMouseState)
-        {
-            glm::vec3 cameraPos = camera.getCameraPosition();
-            glm::vec3 cameraDir = camera.getCameraViewDirection();
-            glm::vec3 bulletStart = cameraPos + cameraDir * 2.0f;
-
-            std::cout << "BULLET FIRED! Direction: (" << cameraDir.x << ", " << cameraDir.y << ", " << cameraDir.z << ")" << std::endl;
-
-            Bullet newBullet(bulletStart, cameraDir, 300.0f, 3.0f);
-            bullets.push_back(newBullet);
-        }
-        lastMouseState = currentMouseState;
-
-        // Update bullets
-        for (auto& bullet : bullets)
-        {
-            bullet.update(deltaTime);
-        }
-
-        // Remove inactive bullets
-        bullets.erase(
-            std::remove_if(bullets.begin(), bullets.end(),
-                [](const Bullet& b) { return !b.isActive(); }),
-            bullets.end()
-        );
+  
 
         // ===== PROJECTION & VIEW MATRICES =====
         glm::mat4 ProjectionMatrix = glm::perspective(90.0f,
@@ -264,10 +245,12 @@ int main()
         GLuint MatrixID = glGetUniformLocation(shader.getId(), "MVP");
         GLuint ModelID = glGetUniformLocation(shader.getId(), "model");
 
+        glUniform1f(glGetUniformLocation(shader.getId(), "ambientStrength"), 0.2f);
+        glUniform1f(glGetUniformLocation(shader.getId(), "specularStrength"), 0.5f);
+
         glUniform3fv(glGetUniformLocation(shader.getId(), "lightColor"), 1, &lightColor[0]);
         glUniform3fv(glGetUniformLocation(shader.getId(), "lightPos"), 1, &lightPos[0]);
-        glUniform3fv(glGetUniformLocation(shader.getId(), "viewPos"), 1,
-            &camera.getCameraPosition()[0]);
+        glUniform3fv(glGetUniformLocation(shader.getId(), "viewPos"), 1, &camera.getCameraPosition()[0]);
 
         float camX = camera.getCameraPosition().x;
         float camZ = camera.getCameraPosition().z;
@@ -292,9 +275,14 @@ int main()
         }
 
         // ===== RENDER SPACESHIPS =====
-        // Center ship
+        // Make spaceships stand out with enhanced lighting
+        glUniform1f(glGetUniformLocation(shader.getId(), "ambientStrength"), 0.7f);
+        glUniform1f(glGetUniformLocation(shader.getId(), "specularStrength"), 1.5f);
+        glm::vec3 brightLightColor = glm::vec3(2.2f, 2.2f, 2.2f);
+        glUniform3fv(glGetUniformLocation(shader.getId(), "lightColor"), 1, &brightLightColor[0]);
+
         glm::mat4 ModelMatrix = glm::mat4(1.0f);
-        ModelMatrix = glm::translate(ModelMatrix, glm::vec3(0.0f, -2.5f, -100.0f));
+        ModelMatrix = glm::translate(ModelMatrix, glm::vec3(-20.0f, -2.5f, -50.0f));
         ModelMatrix = glm::rotate(ModelMatrix, glm::radians(180.0f), glm::vec3(0.0f, 1.0f, 0.0f));
         ModelMatrix = glm::scale(ModelMatrix, glm::vec3(2.5f, 2.5f, 2.5f));
         MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
@@ -302,28 +290,15 @@ int main()
         glUniformMatrix4fv(ModelID, 1, GL_FALSE, &ModelMatrix[0][0]);
         spaceship.draw(shader);
 
-        // Right ship
-        ModelMatrix = glm::mat4(1.0f);
-        ModelMatrix = glm::translate(ModelMatrix, glm::vec3(50.0f, -2.5f, -80.0f));
-        ModelMatrix = glm::rotate(ModelMatrix, glm::radians(180.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-        ModelMatrix = glm::scale(ModelMatrix, glm::vec3(2.5f, 2.5f, 2.5f));
-        MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
-        glUniformMatrix4fv(MatrixID, 1, GL_FALSE, &MVP[0][0]);
-        glUniformMatrix4fv(ModelID, 1, GL_FALSE, &ModelMatrix[0][0]);
-        spaceship.draw(shader);
-
-        // Left ship
-        ModelMatrix = glm::mat4(1.0f);
-        ModelMatrix = glm::translate(ModelMatrix, glm::vec3(-50.0f, -2.5f, -80.0f));
-        ModelMatrix = glm::rotate(ModelMatrix, glm::radians(180.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-        ModelMatrix = glm::scale(ModelMatrix, glm::vec3(2.5f, 2.5f, 2.5f));
-        MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
-        glUniformMatrix4fv(MatrixID, 1, GL_FALSE, &MVP[0][0]);
-        glUniformMatrix4fv(ModelID, 1, GL_FALSE, &ModelMatrix[0][0]);
-        spaceship.draw(shader);
+        // Reset to normal values after spaceships
+        glUniform1f(glGetUniformLocation(shader.getId(), "ambientStrength"), 0.2f);
+        glUniform1f(glGetUniformLocation(shader.getId(), "specularStrength"), 0.5f);
+        glUniform3fv(glGetUniformLocation(shader.getId(), "lightColor"), 1, &lightColor[0]);
 
         // ===== RENDER CAVE WALLS =====
-        // Cave Wall Set - Large formation on the left
+        glUniform1f(glGetUniformLocation(shader.getId(), "ambientStrength"), 0.1f);
+        glUniform1f(glGetUniformLocation(shader.getId(), "specularStrength"), 0.3f);
+
         ModelMatrix = glm::mat4(1.0);
         ModelMatrix = glm::translate(ModelMatrix, glm::vec3(-80.0f, -9.0f, -120.0f));
         ModelMatrix = glm::rotate(ModelMatrix, glm::radians(45.0f), glm::vec3(0.0f, 1.0f, 0.0f));
@@ -333,7 +308,6 @@ int main()
         glUniformMatrix4fv(ModelID, 1, GL_FALSE, &ModelMatrix[0][0]);
         caveWallSet.draw(shader);
 
-        // Cave Wall A - Close to player on right
         ModelMatrix = glm::mat4(1.0);
         ModelMatrix = glm::translate(ModelMatrix, glm::vec3(40.0f, -8.0f, -260.0f));
         ModelMatrix = glm::rotate(ModelMatrix, glm::radians(-30.0f), glm::vec3(0.0f, 1.0f, 0.0f));
@@ -343,7 +317,6 @@ int main()
         glUniformMatrix4fv(ModelID, 1, GL_FALSE, &ModelMatrix[0][0]);
         caveWallA.draw(shader);
 
-        // Cave Wall B - Behind ships
         ModelMatrix = glm::mat4(1.0);
         ModelMatrix = glm::translate(ModelMatrix, glm::vec3(-70.0f, -7.0f, -350.0f));
         ModelMatrix = glm::rotate(ModelMatrix, glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
@@ -353,7 +326,6 @@ int main()
         glUniformMatrix4fv(ModelID, 1, GL_FALSE, &ModelMatrix[0][0]);
         caveWallB.draw(shader);
 
-        // Cave Wall C - Far left
         ModelMatrix = glm::mat4(1.0);
         ModelMatrix = glm::translate(ModelMatrix, glm::vec3(-100.0f, -6.0f, -480.0f));
         ModelMatrix = glm::rotate(ModelMatrix, glm::radians(120.0f), glm::vec3(0.0f, 1.0f, 0.0f));
@@ -363,7 +335,6 @@ int main()
         glUniformMatrix4fv(ModelID, 1, GL_FALSE, &ModelMatrix[0][0]);
         caveWallC.draw(shader);
 
-        // Additional Cave Wall A - Near center ship
         ModelMatrix = glm::mat4(1.0);
         ModelMatrix = glm::translate(ModelMatrix, glm::vec3(-30.0f, -8.5f, 400.0f));
         ModelMatrix = glm::rotate(ModelMatrix, glm::radians(60.0f), glm::vec3(0.0f, 1.0f, 0.0f));
@@ -373,36 +344,155 @@ int main()
         glUniformMatrix4fv(ModelID, 1, GL_FALSE, &ModelMatrix[0][0]);
         caveWallA.draw(shader);
 
+        ModelMatrix = glm::mat4(1.0);
+        ModelMatrix = glm::translate(ModelMatrix, glm::vec3(100.0f, 10.0f, 350.0f));
+        ModelMatrix = glm::rotate(ModelMatrix, glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        ModelMatrix = glm::scale(ModelMatrix, glm::vec3(2.0f, 2.0f, 2.0f));
+        MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
+        glUniformMatrix4fv(MatrixID, 1, GL_FALSE, &MVP[0][0]);
+        glUniformMatrix4fv(ModelID, 1, GL_FALSE, &ModelMatrix[0][0]);
+        caveWall4Set.draw(shader);
+
+        // ===== RENDER ROCK04 MODELS =====
+        ModelMatrix = glm::mat4(1.0);
+        ModelMatrix = glm::translate(ModelMatrix, glm::vec3(-150.0f, -8.0f, 200.0f));
+        ModelMatrix = glm::rotate(ModelMatrix, glm::radians(45.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        ModelMatrix = glm::scale(ModelMatrix, glm::vec3(3.0f, 3.0f, 3.0f));
+        MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
+        glUniformMatrix4fv(MatrixID, 1, GL_FALSE, &MVP[0][0]);
+        glUniformMatrix4fv(ModelID, 1, GL_FALSE, &ModelMatrix[0][0]);
+        rock04A.draw(shader);
+
+        ModelMatrix = glm::mat4(1.0);
+        ModelMatrix = glm::translate(ModelMatrix, glm::vec3(-180.0f, -7.0f, -50.0f));
+        ModelMatrix = glm::rotate(ModelMatrix, glm::radians(-30.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        ModelMatrix = glm::scale(ModelMatrix, glm::vec3(2.5f, 2.5f, 2.5f));
+        MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
+        glUniformMatrix4fv(MatrixID, 1, GL_FALSE, &MVP[0][0]);
+        glUniformMatrix4fv(ModelID, 1, GL_FALSE, &ModelMatrix[0][0]);
+        rock04B.draw(shader);
+
+        ModelMatrix = glm::mat4(1.0);
+        ModelMatrix = glm::translate(ModelMatrix, glm::vec3(150.0f, -8.0f, -80.0f));
+        ModelMatrix = glm::rotate(ModelMatrix, glm::radians(135.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        ModelMatrix = glm::scale(ModelMatrix, glm::vec3(3.0f, 3.0f, 3.0f));
+        MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
+        glUniformMatrix4fv(MatrixID, 1, GL_FALSE, &MVP[0][0]);
+        glUniformMatrix4fv(ModelID, 1, GL_FALSE, &ModelMatrix[0][0]);
+        rock04C.draw(shader);
+
+        ModelMatrix = glm::mat4(1.0);
+        ModelMatrix = glm::translate(ModelMatrix, glm::vec3(170.0f, -7.5f, 20.0f));
+        ModelMatrix = glm::rotate(ModelMatrix, glm::radians(200.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        ModelMatrix = glm::scale(ModelMatrix, glm::vec3(2.8f, 2.8f, 2.8f));
+        MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
+        glUniformMatrix4fv(MatrixID, 1, GL_FALSE, &MVP[0][0]);
+        glUniformMatrix4fv(ModelID, 1, GL_FALSE, &ModelMatrix[0][0]);
+        rock04D.draw(shader);
+
+        ModelMatrix = glm::mat4(1.0);
+        ModelMatrix = glm::translate(ModelMatrix, glm::vec3(-160.0f, -8.5f, 80.0f));
+        ModelMatrix = glm::rotate(ModelMatrix, glm::radians(75.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        ModelMatrix = glm::scale(ModelMatrix, glm::vec3(2.5f, 2.5f, 2.5f));
+        MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
+        glUniformMatrix4fv(MatrixID, 1, GL_FALSE, &MVP[0][0]);
+        glUniformMatrix4fv(ModelID, 1, GL_FALSE, &ModelMatrix[0][0]);
+        rock04E.draw(shader);
+
+        ModelMatrix = glm::mat4(1.0);
+        ModelMatrix = glm::translate(ModelMatrix, glm::vec3(140.0f, -8.0f, 50.0f));
+        ModelMatrix = glm::rotate(ModelMatrix, glm::radians(160.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        ModelMatrix = glm::scale(ModelMatrix, glm::vec3(2.0f, 2.0f, 2.0f));
+        MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
+        glUniformMatrix4fv(MatrixID, 1, GL_FALSE, &MVP[0][0]);
+        glUniformMatrix4fv(ModelID, 1, GL_FALSE, &ModelMatrix[0][0]);
+        rock04Set.draw(shader);
+
+        // ===== ADDITIONAL ROCKS FOR LEFT SIDE BALANCE =====
+        ModelMatrix = glm::mat4(1.0);
+        ModelMatrix = glm::translate(ModelMatrix, glm::vec3(-140.0f, -8.0f, 30.0f));
+        ModelMatrix = glm::rotate(ModelMatrix, glm::radians(-45.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        ModelMatrix = glm::scale(ModelMatrix, glm::vec3(2.8f, 2.8f, 2.8f));
+        MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
+        glUniformMatrix4fv(MatrixID, 1, GL_FALSE, &MVP[0][0]);
+        glUniformMatrix4fv(ModelID, 1, GL_FALSE, &ModelMatrix[0][0]);
+        rock04C.draw(shader);
+
+        ModelMatrix = glm::mat4(1.0);
+        ModelMatrix = glm::translate(ModelMatrix, glm::vec3(-175.0f, -7.8f, 150.0f));
+        ModelMatrix = glm::rotate(ModelMatrix, glm::radians(60.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        ModelMatrix = glm::scale(ModelMatrix, glm::vec3(3.2f, 3.2f, 3.2f));
+        MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
+        glUniformMatrix4fv(MatrixID, 1, GL_FALSE, &MVP[0][0]);
+        glUniformMatrix4fv(ModelID, 1, GL_FALSE, &ModelMatrix[0][0]);
+        rock04D.draw(shader);
+
+        ModelMatrix = glm::mat4(1.0);
+        ModelMatrix = glm::translate(ModelMatrix, glm::vec3(-130.0f, -8.2f, -30.0f));
+        ModelMatrix = glm::rotate(ModelMatrix, glm::radians(110.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        ModelMatrix = glm::scale(ModelMatrix, glm::vec3(2.6f, 2.6f, 2.6f));
+        MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
+        glUniformMatrix4fv(MatrixID, 1, GL_FALSE, &MVP[0][0]);
+        glUniformMatrix4fv(ModelID, 1, GL_FALSE, &ModelMatrix[0][0]);
+        rock04A.draw(shader);
+
+        ModelMatrix = glm::mat4(1.0);
+        ModelMatrix = glm::translate(ModelMatrix, glm::vec3(-155.0f, -7.5f, -120.0f));
+        ModelMatrix = glm::rotate(ModelMatrix, glm::radians(-80.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        ModelMatrix = glm::scale(ModelMatrix, glm::vec3(2.2f, 2.2f, 2.2f));
+        MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
+        glUniformMatrix4fv(MatrixID, 1, GL_FALSE, &MVP[0][0]);
+        glUniformMatrix4fv(ModelID, 1, GL_FALSE, &ModelMatrix[0][0]);
+        rock04Set.draw(shader);
+
+        ModelMatrix = glm::mat4(1.0);
+        ModelMatrix = glm::translate(ModelMatrix, glm::vec3(-165.0f, -8.3f, 250.0f));
+        ModelMatrix = glm::rotate(ModelMatrix, glm::radians(25.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        ModelMatrix = glm::scale(ModelMatrix, glm::vec3(2.9f, 2.9f, 2.9f));
+        MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
+        glUniformMatrix4fv(MatrixID, 1, GL_FALSE, &MVP[0][0]);
+        glUniformMatrix4fv(ModelID, 1, GL_FALSE, &ModelMatrix[0][0]);
+        rock04B.draw(shader);
+
+        glUniform1f(glGetUniformLocation(shader.getId(), "ambientStrength"), 0.2f);
+        glUniform1f(glGetUniformLocation(shader.getId(), "specularStrength"), 0.5f);
+
+        // ===== RENDER ALIENS =====
+        glUniform1f(glGetUniformLocation(shader.getId(), "ambientStrength"), 0.7f);
+        glUniform1f(glGetUniformLocation(shader.getId(), "specularStrength"), 1.5f);
+        glUniform3fv(glGetUniformLocation(shader.getId(), "lightColor"), 1, &brightLightColor[0]);
+        // Alien 1
+        ModelMatrix = glm::mat4(1.0);
+        ModelMatrix = glm::translate(ModelMatrix, glm::vec3(15.0f, -8.0f, -50.0f));
+        ModelMatrix = glm::rotate(ModelMatrix, glm::radians(180.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        ModelMatrix = glm::scale(ModelMatrix, glm::vec3(1.5f, 1.5f, 1.5f));
+        MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
+        glUniformMatrix4fv(MatrixID, 1, GL_FALSE, &MVP[0][0]);
+        glUniformMatrix4fv(ModelID, 1, GL_FALSE, &ModelMatrix[0][0]);
+        alien.draw(shader);
+
+        glUniform1f(glGetUniformLocation(shader.getId(), "ambientStrength"), 0.2f);
+        glUniform1f(glGetUniformLocation(shader.getId(), "specularStrength"), 0.5f);
+        glUniform3fv(glGetUniformLocation(shader.getId(), "lightColor"), 1, &lightColor[0]);
+
         // ===== RENDER ASTEROIDS =====
-        // Asteroid 1 - Floating near right ship
+        glUniform1f(glGetUniformLocation(shader.getId(), "ambientStrength"), 0.7f);
+        glUniform1f(glGetUniformLocation(shader.getId(), "specularStrength"), 1.5f);
+        glUniform3fv(glGetUniformLocation(shader.getId(), "lightColor"), 1, &brightLightColor[0]);
+
+        // Astroid 1
         ModelMatrix = glm::mat4(1.0);
-        ModelMatrix = glm::translate(ModelMatrix, glm::vec3(60.0f, 5.0f, -85.0f));
+        ModelMatrix = glm::translate(ModelMatrix, glm::vec3(15.0f, 50.0f, -50.0f));
         ModelMatrix = glm::rotate(ModelMatrix, glm::radians(35.0f), glm::vec3(1.0f, 0.5f, 0.3f));
-        ModelMatrix = glm::scale(ModelMatrix, glm::vec3(3.5f, 3.5f, 3.5f));
+        ModelMatrix = glm::scale(ModelMatrix, glm::vec3(7.0f, 7.0f, 7.0f));
         MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
         glUniformMatrix4fv(MatrixID, 1, GL_FALSE, &MVP[0][0]);
         glUniformMatrix4fv(ModelID, 1, GL_FALSE, &ModelMatrix[0][0]);
         asteroid.draw(shader);
 
-        // Asteroid 2 - High above center ship
-        ModelMatrix = glm::mat4(1.0);
-        ModelMatrix = glm::translate(ModelMatrix, glm::vec3(-10.0f, 25.0f, -110.0f));
-        ModelMatrix = glm::rotate(ModelMatrix, glm::radians(120.0f), glm::vec3(0.7f, 1.0f, 0.2f));
-        ModelMatrix = glm::scale(ModelMatrix, glm::vec3(4.0f, 4.0f, 4.0f));
-        MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
-        glUniformMatrix4fv(MatrixID, 1, GL_FALSE, &MVP[0][0]);
-        glUniformMatrix4fv(ModelID, 1, GL_FALSE, &ModelMatrix[0][0]);
-        asteroid.draw(shader);
-
-        // Asteroid 3 - Far left, distant
-        ModelMatrix = glm::mat4(1.0);
-        ModelMatrix = glm::translate(ModelMatrix, glm::vec3(-120.0f, 35.0f, -200.0f));
-        ModelMatrix = glm::rotate(ModelMatrix, glm::radians(80.0f), glm::vec3(0.3f, 0.8f, 1.0f));
-        ModelMatrix = glm::scale(ModelMatrix, glm::vec3(5.0f, 5.0f, 5.0f));
-        MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
-        glUniformMatrix4fv(MatrixID, 1, GL_FALSE, &MVP[0][0]);
-        glUniformMatrix4fv(ModelID, 1, GL_FALSE, &ModelMatrix[0][0]);
-        asteroid.draw(shader);
+        glUniform1f(glGetUniformLocation(shader.getId(), "ambientStrength"), 0.2f);
+        glUniform1f(glGetUniformLocation(shader.getId(), "specularStrength"), 0.5f);
+        glUniform3fv(glGetUniformLocation(shader.getId(), "lightColor"), 1, &lightColor[0]);
 
         // ===== RENDER SPACE GUN (First-Person Weapon) =====
         glm::vec3 gunOffset = glm::vec3(0.0f, -0.1f, 0.2f);
@@ -437,22 +527,8 @@ int main()
         glUniformMatrix4fv(ModelID, 1, GL_FALSE, &ModelMatrix[0][0]);
         spaceGun.draw(shader);
 
-        // ===== RENDER BULLETS =====
-        glDisable(GL_DEPTH_TEST);
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-
-        sunShader.use();
-        for (auto& bullet : bullets)
-        {
-            bullet.draw(sunShader, ProjectionMatrix, ViewMatrix);
-        }
-
         glDisable(GL_BLEND);
         glEnable(GL_DEPTH_TEST);
-
-        // ===== DRAW CROSSHAIR =====
-        drawCrosshair(window.getWidth(), window.getHeight());
 
         window.update();
     }
@@ -471,59 +547,4 @@ void processKeyboardInput()
     if (window.isPressed(GLFW_KEY_D)) camera.keyboardMoveRight(speed);
     if (window.isPressed(GLFW_KEY_R)) camera.keyboardMoveUp(speed);
     if (window.isPressed(GLFW_KEY_F)) camera.keyboardMoveDown(speed);
-}
-
-// ================= CROSSHAIR DRAWING =================
-void drawCrosshair(int screenWidth, int screenHeight)
-{
-    GLboolean depthTestEnabled;
-    glGetBooleanv(GL_DEPTH_TEST, &depthTestEnabled);
-    glDisable(GL_DEPTH_TEST);
-
-    glMatrixMode(GL_PROJECTION);
-    glPushMatrix();
-    glLoadIdentity();
-    glOrtho(0, screenWidth, screenHeight, 0, -1, 1);
-
-    glMatrixMode(GL_MODELVIEW);
-    glPushMatrix();
-    glLoadIdentity();
-
-    glUseProgram(0);
-    glColor3f(1.0f, 1.0f, 1.0f);
-
-    float centerX = screenWidth / 2.0f;
-    float centerY = screenHeight / 2.0f;
-    float crosshairSize = 15.0f;
-    float crosshairThickness = 2.0f;
-    float crosshairGap = 5.0f;
-
-    glLineWidth(crosshairThickness);
-    glBegin(GL_LINES);
-
-    // Horizontal line (left)
-    glVertex2f(centerX - crosshairSize - crosshairGap, centerY);
-    glVertex2f(centerX - crosshairGap, centerY);
-
-    // Horizontal line (right)
-    glVertex2f(centerX + crosshairGap, centerY);
-    glVertex2f(centerX + crosshairSize + crosshairGap, centerY);
-
-    // Vertical line (top)
-    glVertex2f(centerX, centerY - crosshairSize - crosshairGap);
-    glVertex2f(centerX, centerY - crosshairGap);
-
-    // Vertical line (bottom)
-    glVertex2f(centerX, centerY + crosshairGap);
-    glVertex2f(centerX, centerY + crosshairSize + crosshairGap);
-
-    glEnd();
-
-    glPopMatrix();
-    glMatrixMode(GL_PROJECTION);
-    glPopMatrix();
-    glMatrixMode(GL_MODELVIEW);
-
-    if (depthTestEnabled)
-        glEnable(GL_DEPTH_TEST);
 }

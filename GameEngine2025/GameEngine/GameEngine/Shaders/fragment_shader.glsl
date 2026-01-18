@@ -10,6 +10,8 @@ uniform sampler2D texture1;
 uniform vec3 lightColor;
 uniform vec3 lightPos;
 uniform vec3 viewPos;
+uniform float ambientStrength;
+uniform float specularStrength;
 
 void main()
 {

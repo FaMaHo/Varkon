@@ -117,30 +117,24 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="Bullet\bullet.cpp" />
     <ClCompile Include="Camera\camera.cpp" />
     <ClCompile Include="Graphics\window.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Model Loading\meshLoaderObj.cpp" />
     <ClCompile Include="Model Loading\mesh.cpp" />
-    <ClCompile Include="Plasma3D\plasma3D.cpp" />
     <ClCompile Include="Shaders\shader.cpp" />
     <ClCompile Include="Model Loading\texture.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Bullet\bullet.h" />
     <ClInclude Include="Camera\camera.h" />
     <ClInclude Include="Graphics\window.h" />
     <ClInclude Include="Model Loading\meshLoaderObj.h" />
     <ClInclude Include="Model Loading\mesh.h" />
     <ClInclude Include="Model Loading\stringTokenizer.h" />
-    <ClInclude Include="Plasma3D\plasma3D.h" />
     <ClInclude Include="Shaders\shader.h" />
     <ClInclude Include="Model Loading\texture.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Shaders\bullet_fragment_shader.glsl" />
-    <None Include="Shaders\bullet_vertex_shader.glsl" />
     <None Include="Shaders\fragment_shader.glsl" />
     <None Include="Shaders\sun_fragment_shader.glsl" />
     <None Include="Shaders\sun_vertex_shader.glsl" />
