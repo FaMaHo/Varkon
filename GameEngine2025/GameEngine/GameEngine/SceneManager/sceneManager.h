@@ -5,6 +5,7 @@
 #include "../GameObject/gameObject.h"
 #include "../Shaders/shader.h"
 #include "../ResourceManager/resourceManager.h"
+#include "../Camera/camera.h"
 #include <glm.hpp>
 #include <gtc/matrix_transform.hpp>
 
@@ -43,6 +44,14 @@ public:
     void renderGround(const glm::mat4& projectionMatrix, const glm::mat4& viewMatrix,
         const glm::vec3& cameraPos, Shader& shader);
 
+    bool isPlayerNearAlien(const glm::vec3& playerPos) const;
+    bool isBagGrabbed() const { return bagGrabbed; }
+
+    void grabBag();
+    void updateBagFollowCamera(Camera& camera);
+
+    void updatePortalAnimation(float time);
+
 private:
     // Scene objects
     std::vector<std::unique_ptr<GameObject>> spaceships;
@@ -50,7 +59,9 @@ private:
     std::vector<std::unique_ptr<GameObject>> caveWalls;
     std::vector<std::unique_ptr<GameObject>> rocks;
     std::vector<std::unique_ptr<GameObject>> asteroids;
-    std::vector<std::unique_ptr<GameObject>> portalMarkers; // Visual indicators for triggers
+    std::vector<std::unique_ptr<GameObject>> portalMarkers;
+    std::unique_ptr<GameObject> bag;
+    bool bagGrabbed = false;
 
     Mesh* starsMesh;
     Mesh* groundMesh;
@@ -72,9 +83,8 @@ private:
     void setNormalLighting(Shader& shader);
 
     // Scene creation methods
-    void createScene1();  // Cave entrance with spaceship
-    void createScene2();  // Deep cave with more aliens
-    void createScene3();  // Underground chamber
+    void createScene1();
+    void createScene2();
 
     // Helper methods for creating object groups (used by scenes)
     void addSpaceship(const glm::vec3& pos, const glm::vec3& rot, const glm::vec3& scale);

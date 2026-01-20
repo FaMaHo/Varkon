@@ -1,4 +1,5 @@
 #include "sceneManager.h"
+#include "../Camera/camera.h"
 #include <glew.h>
 #include <iostream>
 
@@ -26,12 +27,12 @@ void SceneManager::initializeResources()
     rm.loadTexture("mars", "Resources/Textures/mars.bmp");
     rm.loadTexture("base_color", "Resources/Textures/Texture_1K/Base_BaseColor.bmp");
     rm.loadTexture("base_normal", "Resources/Textures/Texture_1K/Base_Normal.bmp");
-    rm.loadTexture("gun", "Resources/Textures/SciFi_Gun_Full_Base/Paint_Base_Color.bmp");
     rm.loadTexture("cave_wall_diffuse", "Resources/Textures/CaveWalls2_Base_Diffuse.bmp");
     rm.loadTexture("asteroid_diffuse", "Resources/Textures/Asteroid_1_Diffuse_1K.bmp");
     rm.loadTexture("cave_wall4_diffuse", "Resources/Textures/CaveWalls4_Base_Diffuse.bmp");
     rm.loadTexture("alien_body", "Resources/Textures/body_Base_Color.bmp");
     rm.loadTexture("alien_eye", "Resources/Textures/eye_Base_Color.bmp");
+    rm.loadTexture("bag_diffuse", "Resources/Textures/tex_bakery_paper_bag.bmp");
 
     // Create procedural meshes
     starsMesh = rm.createStarField("stars", 500, 2000.0f);
@@ -87,6 +88,12 @@ void SceneManager::initializeResources()
     // Load alien
     rm.loadMesh("alien", "Resources/Models/body.obj");
     rm.getMesh("alien")->setTextures({ { rm.getTexture("alien_body"), "texture_diffuse" } });
+
+	// Load paper bag
+    rm.loadMesh("bag", "Resources/Models/bakery paper bag.obj");
+    rm.getMesh("bag")->setTextures({
+        { rm.getTexture("bag_diffuse"), "texture_diffuse" }
+        });
 
     std::cout << "Resources loaded successfully!" << std::endl;
 }
@@ -217,6 +224,54 @@ std::string SceneManager::getTriggerMessage() const
     return "";
 }
 
+void SceneManager::grabBag()
+{
+    bagGrabbed = true;
+}
+
+void SceneManager::updateBagFollowCamera(Camera& camera)
+{
+    if (!bagGrabbed || !bag)
+        return;
+
+    glm::vec3 camPos = camera.getCameraPosition();
+    glm::vec3 forward = camera.getCameraViewDirection();
+    glm::vec3 up = camera.getCameraUp();
+    glm::vec3 right = glm::normalize(glm::cross(forward, up));
+
+    glm::vec3 bagPos =
+        camPos +
+        forward * 2.0f +   // in front
+        right * 0.6f +     // slightly right
+        up * -0.6f;        // slightly down
+
+    bag->setPosition(bagPos);
+    bag->setRotation(glm::vec3(0.0f, 0.0f, 0.0f));
+}
+
+void SceneManager::updatePortalAnimation(float time)
+{
+    // ===== PULSE SCALE =====
+    float baseScale = 3.0f;          
+    float scaleAmplitude = 0.5f;    
+    float scaleSpeed = 2.0f;         
+    float scale = baseScale + sin(time * scaleSpeed) * scaleAmplitude;
+
+    // ===== ROTATION =====
+    float rotationSpeed = 25.0f;    
+
+    for (auto& portal : portalMarkers)
+    {
+        portal->setScale(glm::vec3(scale));
+
+        glm::vec3 rot = portal->getRotation();
+        rot.y += rotationSpeed * 0.016f;
+        portal->setRotation(rot);
+    }
+}
+
+
+
 // ==================== SCENE CREATION METHODS ====================
 
 void SceneManager::createScene1()
@@ -228,6 +283,20 @@ void SceneManager::createScene1()
 
     // Add alien
     addAlien(glm::vec3(15.0f, -8.0f, -50.0f), glm::vec3(0.0f, 180.0f, 0.0f), glm::vec3(1.5f));
+
+    // Add bag near the alien
+    {
+        ResourceManager& rm = ResourceManager::getInstance();
+        Mesh* bagMesh = rm.getMesh("bag");
+
+        bag = std::make_unique<GameObject>(
+            bagMesh,
+            glm::vec3(17.0f, -9.0f, -48.0f),
+            glm::vec3(0.0f, 0.0f, 0.0f),
+            glm::vec3(0.008f)
+        );
+    }
+
 
     // Add cave walls
     addCaveWall("cave_wall_set", glm::vec3(-80.0f, -9.0f, -120.0f), glm::vec3(0.0f, 45.0f, 0.0f), glm::vec3(3.0f));
@@ -268,6 +337,18 @@ void SceneManager::createScene2()
     addCaveWall("cave_wall_a", glm::vec3(-30.0f, -8.5f, 400.0f), glm::vec3(0.0f, 60.0f, 0.0f), glm::vec3(2.0f));
     
 }
+
+bool SceneManager::isPlayerNearAlien(const glm::vec3& playerPos) const
+{
+    for (const auto& alien : aliens)
+    {
+        float dist = glm::distance(playerPos, alien->getPosition());
+        if (dist < 10.0f)
+            return true;
+    }
+    return false;
+}
+
 
 void SceneManager::setupLighting(Shader& shader, const glm::vec3& cameraPos)
 {
@@ -419,4 +500,15 @@ void SceneManager::render(const glm::mat4& projectionMatrix, const glm::mat4& vi
     }
 
     setNormalLighting(shader);
+
+    // Render bag
+    if (bag)
+    {
+        glm::mat4 modelMatrix = bag->getModelMatrix();
+        glm::mat4 MVP = projectionMatrix * viewMatrix * modelMatrix;
+        glUniformMatrix4fv(MatrixID, 1, GL_FALSE, &MVP[0][0]);
+        glUniformMatrix4fv(ModelID, 1, GL_FALSE, &modelMatrix[0][0]);
+        bag->draw(shader);
+    }
+
 }

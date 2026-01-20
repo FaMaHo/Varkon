@@ -13,6 +13,8 @@ float lastY = 600.0f;
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
+bool messagePrinted = false;
+
 Window window("VARKON", 2000, 1200);
 Camera camera;
 
@@ -24,7 +26,8 @@ bool key3Pressed = false;
 bool keyNPressed = false;
 
 // Message display control
-bool messagePrinted = false;
+bool triggerMessagePrinted = false;
+bool alienMessagePrinted = false;
 
 // ================= FUNCTION DECLARATIONS =================
 void processKeyboardInput(SceneManager& sceneManager);
@@ -105,7 +108,24 @@ int main()
             messagePrinted = false;
         }
 
+        // Alien interaction message
+        if (sceneManager.isPlayerNearAlien(camera.getCameraPosition()) && !sceneManager.isBagGrabbed())
+        {
+            if (!messagePrinted)
+            {
+                std::cout << "\n>>> zizo...\n>>> press E to grab the bag <<<\n" << std::endl;
+                messagePrinted = true;
+            }
+        }
+        else
+        {
+            messagePrinted = false;
+        }
+
         processKeyboardInput(sceneManager);
+        sceneManager.updateBagFollowCamera(camera);
+
+        sceneManager.updatePortalAnimation(currentFrame);
 
         // ===== PROJECTION & VIEW MATRICES =====
         glm::mat4 ProjectionMatrix = glm::perspective(90.0f,
@@ -157,5 +177,21 @@ void processKeyboardInput(SceneManager& sceneManager)
     else if (!window.isPressed(GLFW_KEY_N))
     {
         keyNPressed = false;
+    }
+    static bool ePressed = false;
+
+    if (window.isPressed(GLFW_KEY_E) && !ePressed)
+    {
+        ePressed = true;
+
+        if (sceneManager.isPlayerNearAlien(camera.getCameraPosition()))
+        {
+            sceneManager.grabBag();
+            std::cout << ">>> Bag grabbed!\n >>>Find a portal to see zizo..." << std::endl;
+        }
+    }
+    else if (!window.isPressed(GLFW_KEY_E))
+    {
+        ePressed = false;
     }
 }
