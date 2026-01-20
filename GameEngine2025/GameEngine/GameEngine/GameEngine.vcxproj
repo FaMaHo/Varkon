@@ -118,21 +118,25 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Camera\camera.cpp" />
-    <ClCompile Include="Collisions\collision.cpp" />
+    <ClCompile Include="GameObject\gameObject.cpp" />
     <ClCompile Include="Graphics\window.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Model Loading\meshLoaderObj.cpp" />
     <ClCompile Include="Model Loading\mesh.cpp" />
+    <ClCompile Include="ResourceManager\resourceManager.cpp" />
+    <ClCompile Include="SceneManager\sceneManager.cpp" />
     <ClCompile Include="Shaders\shader.cpp" />
     <ClCompile Include="Model Loading\texture.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Camera\camera.h" />
-    <ClInclude Include="Collisions\collision.h" />
+    <ClInclude Include="GameObject\gameObject.h" />
     <ClInclude Include="Graphics\window.h" />
     <ClInclude Include="Model Loading\meshLoaderObj.h" />
     <ClInclude Include="Model Loading\mesh.h" />
     <ClInclude Include="Model Loading\stringTokenizer.h" />
+    <ClInclude Include="ResourceManager\resourceManager.h" />
+    <ClInclude Include="SceneManager\sceneManager.h" />
     <ClInclude Include="Shaders\shader.h" />
     <ClInclude Include="Model Loading\texture.h" />
   </ItemGroup>

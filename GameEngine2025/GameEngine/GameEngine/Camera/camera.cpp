@@ -128,11 +128,6 @@ void Camera::keyboardMoveDown(float speed)
     clampToGround();
 }
 
-void Camera::setPosition(glm::vec3 newPosition) {
-    cameraPosition = newPosition;
-    clampToGround();
-}
-
 // ================= MOUSE =================
 
 void Camera::processMouseMovement(float xoffset, float yoffset)
