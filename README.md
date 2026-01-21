@@ -11,7 +11,7 @@
 - as he got down he found an alien in front of him, surprisingly, the alien stood still watching jack from a distance.
 - jack decided to have some balls and try to get closer and talk to the alien, only to find out that the alien was not vicious as he expected it to be, surprisingly.
 - he says hi, but the alien did not speak English, again, surprisingly. 
-- but something weird happened, the alien handed jack a paper, and said the word 'zizo' telling jack to look for an alien named zizo.
+- but something weird happened, the alien handed jack a paper bag, and said the word 'zizo' telling jack to look for an alien named zizo.
 - we look for zizo among the rocks of mars, and when we finally find him, he hands us another a radio.
 - jack be like 'what the heck!' as he realizes that the aliens are guiding him somewhere, not trying to harm him, but leading him step by step across the planet.
 - until he finds another human who was there before them!!
@@ -66,4 +66,4 @@ Varkon3D
             └───Debug
 ```
 As we are ignoring files and folders like Dependencies and obj and bmp files (as they are heavy and make git crash), you can download the full project from here:
-[[link](https://www.transfernow.net/dl/20260120HetCD66i)]
+[[link](https://sendfileonline.com/?sid=KM0J0S)]
